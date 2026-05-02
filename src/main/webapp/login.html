@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>StreamVault — Login</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0d0d0d;
+            color: #f0f0f0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+        h1 { font-size: 2rem; color: #e94560; margin-bottom: 6px; }
+        p.sub { color: #888; margin-bottom: 28px; font-size: 0.9rem; }
+        .tabs { display: flex; margin-bottom: 24px; border-bottom: 1px solid #333; }
+        .tab {
+            flex: 1; text-align: center; padding: 10px;
+            cursor: pointer; color: #888; font-weight: 600;
+            border-bottom: 2px solid transparent; transition: 0.2s;
+        }
+        .tab.active { color: #e94560; border-bottom: 2px solid #e94560; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: #aaa; }
+        input, select {
+            width: 100%; padding: 10px 14px;
+            background: #0d0d0d; border: 1px solid #333;
+            border-radius: 8px; color: #f0f0f0; font-size: 0.95rem;
+            outline: none; transition: border 0.2s;
+        }
+        input:focus, select:focus { border-color: #e94560; }
+        button {
+            width: 100%; padding: 12px;
+            background: #e94560; border: none;
+            border-radius: 8px; color: white;
+            font-size: 1rem; font-weight: 700;
+            cursor: pointer; margin-top: 8px; transition: 0.2s;
+        }
+        button:hover { background: #c73652; }
+        .msg {
+            margin-top: 14px; padding: 10px 14px;
+            border-radius: 8px; font-size: 0.88rem;
+            display: none;
+        }
+        .msg.error   { background: #3d0000; color: #ff6b6b; }
+        .msg.success { background: #003d1a; color: #6bffb8; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>StreamVault</h1>
+    <p class="sub">Your all-in-one streaming platform</p>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('login')">Login</div>
+        <div class="tab"        onclick="switchTab('register')">Register</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="panel active" id="panel-login">
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="you@example.com"/>
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="••••••••"/>
+        </div>
+        <button onclick="doLogin()">Sign In</button>
+        <div class="msg" id="login-msg"></div>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="panel" id="panel-register">
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="reg-name" placeholder="John Doe"/>
+        </div>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="reg-email" placeholder="you@example.com"/>
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="reg-password" placeholder="Min 8 characters"/>
+        </div>
+        <div class="form-group">
+            <label>Date of Birth</label>
+            <input type="date" id="reg-dob"/>
+        </div>
+        <div class="form-group">
+            <label>Country</label>
+            <select id="reg-country">
+                <option value="AE">United Arab Emirates</option>
+                <option value="US">United States</option>
+                <option value="GB">United Kingdom</option>
+                <option value="JP">Japan</option>
+                <option value="DE">Germany</option>
+                <option value="FR">France</option>
+                <option value="IN">India</option>
+                <option value="BR">Brazil</option>
+                <option value="MX">Mexico</option>
+                <option value="EG">Egypt</option>
+                <option value="GH">Ghana</option>
+                <option value="SE">Sweden</option>
+                <option value="IE">Ireland</option>
+                <option value="DK">Denmark</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Subscription Plan</label>
+            <select id="reg-plan">
+                <option value="1">Basic — $4.99/mo</option>
+                <option value="2">Standard — $9.99/mo</option>
+                <option value="3" selected>Premium — $14.99/mo</option>
+                <option value="4">Family — $19.99/mo</option>
+                <option value="5">Student — $3.49/mo</option>
+            </select>
+        </div>
+        <button onclick="doRegister()">Create Account</button>
+        <div class="msg" id="reg-msg"></div>
+    </div>
+</div>
+
+<script>
+    function switchTab(tab) {
+        document.querySelectorAll('.tab').forEach((t,i) =>
+            t.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1)));
+        document.querySelectorAll('.panel').forEach((p,i) =>
+            p.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1)));
+    }
+
+    function showMsg(id, text, type) {
+        const el = document.getElementById(id);
+        el.textContent = text;
+        el.className = 'msg ' + type;
+        el.style.display = 'block';
+    }
+
+    async function doLogin() {
+        const email    = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+        if (!email || !password) { showMsg('login-msg','Fill in all fields.','error'); return; }
+
+        const form = new FormData();
+        form.append('email', email);
+        form.append('password', password);
+
+        const res  = await fetch('login', { method:'POST', body: new URLSearchParams(form) });
+        const data = await res.json();
+
+        if (data.success) {
+            showMsg('login-msg', 'Welcome back! Redirecting...', 'success');
+            setTimeout(() => {
+                window.location.href = data.role === 'admin' ? 'admin.html' : 'home.html';
+            }, 800);
+        } else {
+            showMsg('login-msg', data.message, 'error');
+        }
+    }
+
+    async function doRegister() {
+        const fields = {
+            full_name:     document.getElementById('reg-name').value.trim(),
+            email:         document.getElementById('reg-email').value.trim(),
+            password:      document.getElementById('reg-password').value,
+            date_of_birth: document.getElementById('reg-dob').value,
+            country:       document.getElementById('reg-country').value.trim(),
+            plan_id:       document.getElementById('reg-plan').value
+        };
+        if (Object.values(fields).some(v => !v)) {
+            showMsg('reg-msg','Fill in all fields.','error'); return;
+        }
+
+        const res  = await fetch('register', { method:'POST', body: new URLSearchParams(fields) });
+        const data = await res.json();
+
+        if (data.success) {
+            showMsg('reg-msg', data.message, 'success');
+            setTimeout(() => switchTab('login'), 1500);
+        } else {
+            showMsg('reg-msg', data.message, 'error');
+        }
+    }
+</script>
+</body>
+</html>

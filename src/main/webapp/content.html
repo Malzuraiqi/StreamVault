@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>StreamVault — Content</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #f0f0f0; }
+        nav {
+            background: #1a1a2e; padding: 14px 32px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        nav h1 { color: #e94560; font-size: 1.4rem; cursor:pointer; }
+        nav .links a { color: #aaa; text-decoration: none; margin-left: 20px; font-size: 0.9rem; }
+        nav .links a:hover { color: #e94560; }
+        .hero {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 48px 32px; border-bottom: 1px solid #222;
+        }
+        .hero-inner { max-width: 860px; margin: 0 auto; }
+        .hero-type {
+            display: inline-block; background: #e94560;
+            padding: 3px 12px; border-radius: 4px;
+            font-size: 0.78rem; font-weight: 700; margin-bottom: 12px;
+        }
+        .hero h2 { font-size: 2rem; margin-bottom: 10px; }
+        .hero-meta { color: #888; font-size: 0.88rem; margin-bottom: 16px; }
+        .hero-meta span { margin-right: 16px; }
+        .genres .genre-tag {
+            display: inline-block; background: #0f3460;
+            padding: 3px 10px; border-radius: 12px;
+            font-size: 0.78rem; margin-right: 6px; margin-bottom: 8px;
+        }
+        .rating-big { font-size: 1.4rem; color: #f0c040; margin: 12px 0; }
+        .play-btn {
+            background: #e94560; border: none; border-radius: 8px;
+            color: white; padding: 12px 32px; font-size: 1rem;
+            font-weight: 700; cursor: pointer; margin-top: 8px; transition: 0.2s;
+        }
+        .play-btn:hover { background: #c73652; }
+        .play-msg { margin-top: 10px; font-size: 0.85rem; color: #6bffb8; display: none; }
+        .section { max-width: 860px; margin: 32px auto; padding: 0 32px; }
+        .section h3 { font-size: 1.1rem; margin-bottom: 16px; color: #e94560; }
+        .synopsis-text { color: #c9c9c9; line-height: 1.7; font-size: 0.95rem; }
+        .episode {
+            background: #1a1a2e; border-radius: 8px;
+            padding: 12px 16px; margin-bottom: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .episode:hover { background: #16213e; }
+        .ep-title { font-weight: 600; font-size: 0.9rem; }
+        .ep-meta  { font-size: 0.78rem; color: #888; margin-top: 3px; }
+        .ep-dur   { font-size: 0.82rem; color: #555; }
+        .review {
+            background: #1a1a2e; border-radius: 8px;
+            padding: 14px 16px; margin-bottom: 10px;
+        }
+        .review-header { display: flex; justify-content: space-between; margin-bottom: 6px; }
+        .review-name   { font-weight: 700; font-size: 0.88rem; }
+        .review-rating { color: #f0c040; font-size: 0.88rem; }
+        .review-text   { font-size: 0.85rem; color: #aaa; line-height: 1.5; }
+        .empty-section { color: #555; font-size: 0.88rem; padding: 10px 0; }
+    </style>
+</head>
+<body>
+<nav>
+    <h1 onclick="window.location.href='home.html'">StreamVault</h1>
+    <div class="links">
+        <a href="home.html">Browse</a>
+        <a href="dashboard.html">My Account</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </div>
+</nav>
+
+<div class="hero">
+    <div class="hero-inner" id="hero">
+        <div style="color:#555">Loading...</div>
+    </div>
+</div>
+
+<div class="section" id="synopsis-section" style="display:none">
+    <h3>Synopsis</h3>
+    <div class="synopsis-text" id="synopsis-text"></div>
+</div>
+
+<div class="section" id="episodes-section" style="display:none">
+    <h3>Episodes</h3>
+    <div id="episodes-list"></div>
+</div>
+
+<div class="section">
+    <h3>Reviews</h3>
+    <div id="reviews-list"></div>
+</div>
+
+<script>
+    const params    = new URLSearchParams(window.location.search);
+    const contentId = params.get('id');
+    let contentData = null;
+
+    async function checkAdmin() {
+        if (document.getElementById('admin-link')) return;
+        const res = await fetch('admin');
+        if (res.ok) {
+            const adminLink = document.createElement('a');
+            adminLink.id = 'admin-link';
+            adminLink.href = 'admin.html';
+            adminLink.textContent = 'Admin';
+            adminLink.style.color = '#e94560';
+            adminLink.style.marginLeft = '20px';
+            adminLink.style.fontSize = '0.9rem';
+            adminLink.style.textDecoration = 'none';
+            adminLink.style.fontWeight = '700';
+            document.querySelector('nav .links').appendChild(adminLink);
+        }
+    }
+
+    async function load() {
+        if (!contentId) { window.location.href = 'home.html'; return; }
+
+        const res = await fetch('content?id=' + contentId);
+        if (res.status === 401) { window.location.href = 'login.html'; return; }
+
+        contentData = await res.json();
+        renderHero(contentData);
+        renderSynopsis(contentData.synopsis);
+        renderEpisodes(contentData.episodes || []);
+        renderReviews(contentData.reviews || []);
+    }
+
+    function renderHero(d) {
+        document.title = 'StreamVault — ' + d.title;
+        const genres = (d.genres || []).map(g =>
+            `<span class="genre-tag">${g}</span>`).join('');
+        document.getElementById('hero').innerHTML = `
+    <span class="hero-type">${d.type}</span>
+    <h2>${d.title}</h2>
+    <div class="hero-meta">
+      <span>📅 ${d.release_year}</span>
+      <span>🌐 ${d.language}</span>
+      ${d.duration_minutes ? `<span>⏱ ${d.duration_minutes} min</span>` : ''}
+      ${d.age_rating ? `<span>🔞 ${d.age_rating}</span>` : ''}
+      ${d.studio_name ? `<span>🎬 ${d.studio_name}</span>` : ''}
+    </div>
+    <div class="genres">${genres}</div>
+    <div class="rating-big">★ ${d.avg_rating || 'N/A'} <span style="font-size:0.9rem;color:#888">(${d.review_count} reviews)</span></div>
+    <button class="play-btn" onclick="play(null)">▶ Play Now</button>
+    <button onclick="toggleWatchlist()" id="wl-btn"
+      style="background:#0f3460;border:none;border-radius:8px;color:white;
+      padding:12px 24px;font-size:1rem;font-weight:700;cursor:pointer;margin-left:10px">
+      + Watchlist
+    </button>
+    <div id="player" style="display:none;margin-top:20px;">
+      ${d.type === 'Music'
+                ? `<audio controls style="width:100%">
+             <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg"/>
+           </audio>`
+                : d.type === 'Book'
+                    ? `<iframe src="https://www.w3.org/WAI/WCAG21/Techniques/pdf/pdf-sample.pdf"
+             width="100%" height="400px" style="border-radius:8px;border:none;margin-top:8px"></iframe>`
+                    : `<video controls width="100%" style="border-radius:8px;max-height:340px;background:#000">
+             <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4"/>
+           </video>`
+            }
+    </div>
+    <div class="play-msg" id="play-msg">✓ Playback recorded!</div>
+  `;
+    }
+
+    function renderSynopsis(synopsis) {
+        if (!synopsis) return;
+        document.getElementById('synopsis-section').style.display = 'block';
+        document.getElementById('synopsis-text').textContent = synopsis;
+    }
+
+    function renderEpisodes(episodes) {
+        if (!episodes.length) return;
+        document.getElementById('episodes-section').style.display = 'block';
+        document.getElementById('episodes-list').innerHTML = episodes.map(ep => `
+    <div class="episode" onclick="play(${ep.episode_id})">
+      <div>
+        <div class="ep-title">S${ep.season_no}E${ep.episode_no} — ${ep.title}</div>
+        <div class="ep-meta">Click to play</div>
+      </div>
+      <div class="ep-dur">${ep.duration_minutes} min</div>
+    </div>
+  `).join('');
+    }
+
+    function renderReviews(reviews) {
+        const el = document.getElementById('reviews-list');
+        const reviewForm = `
+    <div style="margin-top:20px;background:#1a1a2e;border-radius:10px;padding:20px">
+      <div style="font-weight:700;margin-bottom:12px;color:#e94560">Write a Review</div>
+      <div style="margin-bottom:10px">
+        <label style="font-size:0.85rem;color:#aaa">Rating (1-10)</label>
+        <input type="number" id="review-rating" min="1" max="10"
+          style="width:80px;margin-left:10px;background:#0d0d0d;border:1px solid #333;
+          border-radius:6px;color:#f0f0f0;padding:6px 10px"/>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:0.85rem;color:#aaa;display:block;margin-bottom:6px">Review (optional)</label>
+        <textarea id="review-text" rows="3"
+          style="width:100%;background:#0d0d0d;border:1px solid #333;border-radius:6px;
+          color:#f0f0f0;padding:8px 12px;resize:vertical"></textarea>
+      </div>
+      <button onclick="submitReview()"
+        style="background:#e94560;border:none;border-radius:8px;color:white;
+        padding:10px 24px;font-weight:700;cursor:pointer">Submit Review</button>
+      <div id="review-msg" style="margin-top:10px;font-size:0.85rem;display:none"></div>
+    </div>`;
+        if (!reviews.length) {
+            el.innerHTML = '<div class="empty-section">No reviews yet.</div>' + reviewForm;
+            return;
+        }
+        el.innerHTML = reviews.map(r => `
+    <div class="review">
+      <div class="review-header">
+        <span class="review-name">${r.full_name}</span>
+        <span class="review-rating">${'★'.repeat(r.rating)}${'☆'.repeat(10 - r.rating)} ${r.rating}/10</span>
+      </div>
+      <div class="review-text">${r.review_text || '<em>No written review.</em>'}</div>
+    </div>
+  `).join('') + reviewForm;
+    }
+
+    async function play(episodeId) {
+        document.getElementById('player').style.display = 'block';
+        const form = new URLSearchParams();
+        form.append('content_id', contentId);
+        form.append('device_type', 'Browser');
+        if (episodeId) form.append('episode_id', episodeId);
+
+        const res  = await fetch('content', { method:'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+            const msg = document.getElementById('play-msg');
+            if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display='none', 3000); }
+        }
+    }
+
+    async function toggleWatchlist() {
+        const btn = document.getElementById('wl-btn');
+        const isAdded = btn.textContent.includes('Remove');
+        const form = new URLSearchParams({
+            content_id: contentId,
+            action: isAdded ? 'remove' : 'add'
+        });
+        const res  = await fetch('watchlist', { method:'POST', body: form });
+        const data = await res.json();
+        if (data.success) {
+            btn.textContent = isAdded ? '+ Watchlist' : '✓ Remove from Watchlist';
+            btn.style.background = isAdded ? '#0f3460' : '#1a5276';
+        }
+    }
+
+    async function submitReview() {
+        const rating = document.getElementById('review-rating').value;
+        const text   = document.getElementById('review-text').value;
+        const msg    = document.getElementById('review-msg');
+
+        if (!rating) {
+            msg.style.display='block'; msg.style.color='#ff6b6b';
+            msg.textContent='Please enter a rating.'; return;
+        }
+
+        const form = new URLSearchParams({
+            content_id: contentId, rating, review_text: text
+        });
+        const res  = await fetch('review', { method:'POST', body: form });
+        const data = await res.json();
+
+        msg.style.display = 'block';
+        if (data.success) {
+            msg.style.color = '#6bffb8';
+            msg.textContent = '✓ Review submitted!';
+            setTimeout(() => load(), 1000);
+        } else {
+            msg.style.color = '#ff6b6b';
+            msg.textContent = data.error || data.message;
+        }
+    }
+
+    async function logout() {
+        await fetch('logout', { method:'POST' });
+        window.location.href = 'login.html';
+    }
+
+    checkAdmin();
+    load();
+</script>
+</body>
+</html>

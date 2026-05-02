@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>StreamVault — Browse</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #f0f0f0; }
+        nav {
+            background: #1a1a2e; padding: 14px 32px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.5);
+        }
+        nav h1 { color: #e94560; font-size: 1.4rem; }
+        nav .links a {
+            color: #aaa; text-decoration: none; margin-left: 20px;
+            font-size: 0.9rem; transition: color 0.2s;
+        }
+        nav .links a:hover { color: #e94560; }
+        .filters {
+            padding: 20px 32px; display: flex; gap: 12px; flex-wrap: wrap;
+            background: #111;
+        }
+        input[type=text], select {
+            background: #1a1a2e; border: 1px solid #333;
+            border-radius: 8px; color: #f0f0f0;
+            padding: 8px 14px; font-size: 0.9rem; outline: none;
+        }
+        input[type=text] { flex: 1; min-width: 200px; }
+        input[type=text]:focus, select:focus { border-color: #e94560; }
+        button.filter-btn {
+            background: #e94560; border: none; border-radius: 8px;
+            color: white; padding: 8px 20px; cursor: pointer; font-weight: 600;
+        }
+        button.filter-btn:hover { background: #c73652; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px; padding: 28px 32px;
+        }
+        .card {
+            background: #1a1a2e; border-radius: 10px; overflow: hidden;
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(233,69,96,0.2); }
+        .card-banner {
+            height: 120px; display: flex; align-items: center;
+            justify-content: center; font-size: 2.5rem;
+        }
+        .card-body { padding: 14px; }
+        .card-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
+        .card-meta { font-size: 0.78rem; color: #888; margin-bottom: 4px; }
+        .badge {
+            display: inline-block; padding: 2px 8px; border-radius: 4px;
+            font-size: 0.72rem; font-weight: 700; margin-top: 6px;
+        }
+        .badge-movie   { background: #e94560; }
+        .badge-series  { background: #0f3460; }
+        .badge-music   { background: #533483; }
+        .badge-book    { background: #1a5276; }
+        .rating { color: #f0c040; font-size: 0.82rem; margin-top: 4px; }
+        .empty { text-align: center; padding: 60px; color: #555; font-size: 1.1rem; }
+        .pagination {
+            display: flex; align-items: center; justify-content: center;
+            gap: 8px; padding: 0 32px 32px; flex-wrap: wrap;
+        }
+        .page-btn {
+            background: #1a1a2e; border: 1px solid #333; border-radius: 6px;
+            color: #f0f0f0; min-width: 36px; height: 36px;
+            padding: 0 10px; cursor: pointer; font-weight: 600;
+        }
+        .page-btn:hover { border-color: #e94560; color: #e94560; }
+        .page-btn.active { background: #e94560; border-color: #e94560; color: #fff; }
+        .page-btn:disabled { opacity: 0.45; cursor: not-allowed; color: #888; border-color: #333; }
+        .page-summary { color: #888; font-size: 0.85rem; width: 100%; text-align: center; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<nav>
+    <h1>StreamVault</h1>
+    <div class="links">
+        <a href="home.html">Browse</a>
+        <a href="dashboard.html">My Account</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </div>
+</nav>
+
+<div class="filters">
+    <input type="text" id="search" placeholder="Search titles..." oninput="loadContent()"/>
+    <select id="type" onchange="loadContent()">
+        <option value="">All Types</option>
+        <option value="Movie">Movie</option>
+        <option value="Series">Series</option>
+        <option value="Music">Music</option>
+        <option value="Book">Book</option>
+    </select>
+    <select id="genre" onchange="loadContent()">
+        <option value="">All Genres</option>
+        <option value="Action">Action</option>
+        <option value="Drama">Drama</option>
+        <option value="Thriller">Thriller</option>
+        <option value="Sci-Fi">Sci-Fi</option>
+        <option value="Animation">Animation</option>
+        <option value="Fantasy">Fantasy</option>
+        <option value="Documentary">Documentary</option>
+        <option value="Romance">Romance</option>
+        <option value="Horror">Horror</option>
+        <option value="Comedy">Comedy</option>
+    </select>
+    <select id="language" onchange="loadContent()">
+        <option value="">All Languages</option>
+        <option value="English">English</option>
+        <option value="Japanese">Japanese</option>
+        <option value="Hindi">Hindi</option>
+        <option value="Danish">Danish</option>
+        <option value="Arabic">Arabic</option>
+    </select>
+</div>
+
+<div class="grid" id="grid">
+    <div class="empty">Loading content...</div>
+</div>
+<div class="pagination" id="pagination"></div>
+
+<script>
+    const banners = {
+        Movie:'🎬', Series:'📺', Music:'🎵', Book:'📖'
+    };
+    const badgeClass = {
+        Movie:'badge-movie', Series:'badge-series', Music:'badge-music', Book:'badge-book'
+    };
+    const pageSize = 12;
+    let allItems = [];
+    let currentPage = 1;
+
+    async function checkAdmin() {
+        if (document.getElementById('admin-link')) return;
+        const res = await fetch('admin');
+        if (res.ok) {
+            const adminLink = document.createElement('a');
+            adminLink.id = 'admin-link';
+            adminLink.href = 'admin.html';
+            adminLink.textContent = 'Admin';
+            adminLink.style.color = '#e94560';
+            adminLink.style.marginLeft = '20px';
+            adminLink.style.fontSize = '0.9rem';
+            adminLink.style.textDecoration = 'none';
+            adminLink.style.fontWeight = '700';
+            document.querySelector('nav .links').appendChild(adminLink);
+        }
+    }
+
+    async function loadContent() {
+        const search   = document.getElementById('search').value;
+        const type     = document.getElementById('type').value;
+        const genre    = document.getElementById('genre').value;
+        const language = document.getElementById('language').value;
+
+        const params = new URLSearchParams();
+        if (search)   params.append('search',   search);
+        if (type)     params.append('type',     type);
+        if (genre)    params.append('genre',    genre);
+        if (language) params.append('language', language);
+
+        const res = await fetch('home?' + params.toString());
+        if (res.status === 401) { window.location.href = 'login.html'; return; }
+
+        allItems = await res.json();
+        currentPage = 1;
+        renderPage();
+    }
+
+    function renderPage() {
+        const grid  = document.getElementById('grid');
+        const pagination = document.getElementById('pagination');
+
+        if (!allItems.length) {
+            grid.innerHTML = '<div class="empty">No content found.</div>';
+            pagination.innerHTML = '';
+            return;
+        }
+
+        const totalPages = Math.ceil(allItems.length / pageSize);
+        currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+        const start = (currentPage - 1) * pageSize;
+        const pageItems = allItems.slice(start, start + pageSize);
+
+        grid.innerHTML = pageItems.map(item => `
+    <div class="card" onclick="openContent(${item.content_id})">
+      <div class="card-banner" style="background:${bannerColor(item.type)}">
+        ${banners[item.type] || '🎬'}
+      </div>
+      <div class="card-body">
+        <div class="card-title">${item.title}</div>
+        <div class="card-meta">${item.release_year} · ${item.language}</div>
+        <div class="card-meta">${item.duration_minutes ? item.duration_minutes + ' min' : 'Series'}</div>
+        <span class="badge ${badgeClass[item.type]}">${item.type}</span>
+        ${item.age_rating ? `<span class="badge" style="background:#333;margin-left:4px">${item.age_rating}</span>` : ''}
+        <div class="rating">★ ${item.avg_rating || 'N/A'}</div>
+      </div>
+    </div>
+  `).join('');
+
+        renderPagination(totalPages, start, pageItems.length);
+    }
+
+    function renderPagination(totalPages, start, visibleCount) {
+        const pagination = document.getElementById('pagination');
+        if (totalPages <= 1) {
+            pagination.innerHTML = '';
+            return;
+        }
+
+        const buttons = [];
+        buttons.push(`<button class="page-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Prev</button>`);
+        for (let page = 1; page <= totalPages; page++) {
+            buttons.push(`<button class="page-btn ${page === currentPage ? 'active' : ''}" onclick="goToPage(${page})">${page}</button>`);
+        }
+        buttons.push(`<button class="page-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>`);
+        buttons.push(`<div class="page-summary">Showing ${start + 1}-${start + visibleCount} of ${allItems.length}</div>`);
+        pagination.innerHTML = buttons.join('');
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        renderPage();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function bannerColor(type) {
+        return {Movie:'#1e0a14',Series:'#0a1230',Music:'#1a0a2e',Book:'#0a1e1e'}[type] || '#1a1a2e';
+    }
+
+    function openContent(id) {
+        window.location.href = 'content.html?id=' + id;
+    }
+
+    async function logout() {
+        const res = await fetch('logout', { method:'POST' });
+        const data = await res.json();
+        console.log(data);
+        window.location.href = 'login.html';
+    }
+
+    checkAdmin();
+    loadContent();
+</script>
+</body>
+</html>

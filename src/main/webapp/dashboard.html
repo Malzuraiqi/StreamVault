@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>StreamVault — My Account</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #f0f0f0; }
+        nav {
+            background: #1a1a2e; padding: 14px 32px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        nav h1 { color: #e94560; font-size: 1.4rem; cursor:pointer; }
+        nav .links a { color: #aaa; text-decoration: none; margin-left: 20px; font-size: 0.9rem; }
+        nav .links a:hover { color: #e94560; }
+        .page { max-width: 900px; margin: 36px auto; padding: 0 28px; }
+        .section-title {
+            font-size: 1.1rem; font-weight: 700; color: #e94560;
+            margin-bottom: 16px; padding-bottom: 8px;
+            border-bottom: 1px solid #222;
+        }
+        .plan-card {
+            background: linear-gradient(135deg, #1a1a2e, #0f3460);
+            border-radius: 12px; padding: 24px; margin-bottom: 32px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .plan-name { font-size: 1.6rem; font-weight: 800; color: #e94560; }
+        .plan-price { font-size: 1.1rem; color: #aaa; margin-top: 4px; }
+        .plan-details { font-size: 0.85rem; color: #888; margin-top: 8px; }
+        .plan-badge {
+            background: #e94560; padding: 6px 16px;
+            border-radius: 20px; font-weight: 700; font-size: 0.88rem;
+        }
+        .mb32 { margin-bottom: 32px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        th {
+            text-align: left; padding: 10px 12px;
+            background: #1a1a2e; color: #888; font-weight: 600;
+        }
+        td { padding: 10px 12px; border-bottom: 1px solid #1a1a2e; }
+        tr:hover td { background: #111; }
+        .status-completed { color: #6bffb8; }
+        .status-failed    { color: #ff6b6b; }
+        .status-refunded  { color: #f0c040; }
+        .status-pending   { color: #aaa; }
+        .progress-bar {
+            background: #1a1a2e; border-radius: 4px;
+            height: 6px; width: 100px; overflow: hidden; display: inline-block;
+        }
+        .progress-fill { background: #e94560; height: 100%; }
+        .empty-section { color: #555; font-size: 0.88rem; padding: 10px 0; }
+        .content-link { color: #e94560; cursor:pointer; text-decoration: underline; }
+    </style>
+</head>
+<body>
+<nav>
+    <h1 onclick="window.location.href='home.html'">StreamVault</h1>
+    <div class="links">
+        <a href="home.html">Browse</a>
+        <a href="dashboard.html">My Account</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </div>
+</nav>
+
+<div class="page">
+
+    <!-- Plan -->
+    <div class="section-title">My Subscription</div>
+    <div class="plan-card" id="plan-card">
+        <div style="color:#555">Loading...</div>
+    </div>
+
+    <!-- Billing -->
+    <div class="section-title">Billing History</div>
+    <div class="mb32">
+        <table id="billing-table">
+            <thead>
+            <tr>
+                <th>Plan</th><th>Amount</th><th>Method</th>
+                <th>Date</th><th>Status</th>
+            </tr>
+            </thead>
+            <tbody id="billing-body"></tbody>
+        </table>
+    </div>
+
+    <!-- Continue Watching -->
+    <div class="section-title">Continue Watching</div>
+    <div class="mb32">
+        <table>
+            <thead>
+            <tr><th>Title</th><th>Type</th><th>Progress</th><th>Device</th><th>Last Watched</th></tr>
+            </thead>
+            <tbody id="continue-body"></tbody>
+        </table>
+    </div>
+
+    <!-- Watch History -->
+    <div class="section-title">Watch History (Last 30 Days)</div>
+    <div class="mb32">
+        <table>
+            <thead>
+            <tr><th>Title</th><th>Type</th><th>Progress</th><th>Completed</th><th>Device</th><th>Date</th></tr>
+            </thead>
+            <tbody id="history-body"></tbody>
+        </table>
+    </div>
+
+    <!-- Watchlist -->
+    <div class="section-title">Watchlist</div>
+    <div class="mb32">
+        <table>
+            <thead>
+            <tr><th>Title</th><th>Type</th><th>Release Year</th><th>Added</th></tr>
+            </thead>
+            <tbody id="watchlist-body"></tbody>
+        </table>
+    </div>
+
+</div>
+
+
+<script>
+    async function checkAdmin() {
+        if (document.getElementById('admin-link')) return;
+        const res = await fetch('admin');
+        if (res.ok) {
+            const adminLink = document.createElement('a');
+            adminLink.id = 'admin-link';
+            adminLink.href = 'admin.html';
+            adminLink.textContent = 'Admin';
+            adminLink.style.color = '#e94560';
+            adminLink.style.marginLeft = '20px';
+            adminLink.style.fontSize = '0.9rem';
+            adminLink.style.textDecoration = 'none';
+            adminLink.style.fontWeight = '700';
+            document.querySelector('nav .links').appendChild(adminLink);
+        }
+    }
+
+    async function load() {
+        const res = await fetch('dashboard');
+        if (res.status === 401) { window.location.href = 'login.html'; return; }
+        const d = await res.json();
+
+        // Plan card
+        const pc = document.getElementById('plan-card');
+        if (d.subscription) {
+            const s = d.subscription;
+            pc.innerHTML = `
+      <div>
+        <div class="plan-name">${s.plan_name}</div>
+        <div class="plan-price">$${s.monthly_price.toFixed(2)} / month</div>
+        <div class="plan-details">
+          Streams: ${s.max_streams} &nbsp;|&nbsp;
+          Resolution: ${s.resolution_limit} &nbsp;|&nbsp;
+          Downloads: ${s.has_downloads ? 'Yes' : 'No'}<br>
+          Since: ${s.start_date} &nbsp;|&nbsp;
+          Auto-renew: ${s.auto_renew ? 'On' : 'Off'}
+        </div>
+      </div>
+      </div>
+      <div>
+        <div class="plan-badge">${s.status.toUpperCase()}</div>
+        <button onclick="toggleAutoRenew()" style="background:#333;border:none;border-radius:8px;
+          color:#f0f0f0;padding:8px 16px;cursor:pointer;font-size:0.85rem;margin-top:8px">
+          Toggle Auto-Renew
+        </button>
+      </div>
+    `;
+        } else {
+            pc.innerHTML = '<div style="color:#555">No active subscription found.</div>';
+        }
+
+        // Billing
+        const bb = document.getElementById('billing-body');
+        if (!d.billing_history.length) {
+            bb.innerHTML = '<tr><td colspan="5" class="empty-section">No payment records.</td></tr>';
+        } else {
+            bb.innerHTML = d.billing_history.map(p => `
+      <tr>
+        <td>${p.plan_name}</td>
+        <td>${p.amount.toFixed(2)} ${p.currency}</td>
+        <td>${p.method}</td>
+        <td>${p.payment_date}</td>
+        <td class="status-${p.status}">${p.status}</td>
+      </tr>
+    `).join('');
+        }
+
+        // Continue watching
+        const cb = document.getElementById('continue-body');
+        if (!d.continue_watching.length) {
+            cb.innerHTML = '<tr><td colspan="5" class="empty-section">Nothing to continue.</td></tr>';
+        } else {
+            cb.innerHTML = d.continue_watching.map(w => `
+      <tr>
+        <td class="content-link" onclick="window.location.href='content.html?id=${w.content_id}'">${w.title}</td>
+        <td>${w.type}</td>
+        <td>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${w.progress_pct}%"></div>
+          </div>
+          ${w.progress_pct}%
+        </td>
+        <td>${w.device_type}</td>
+        <td>${w.watch_date}</td>
+      </tr>
+    `).join('');
+        }
+
+        // History
+        const hb = document.getElementById('history-body');
+        if (!d.watch_history.length) {
+            hb.innerHTML = '<tr><td colspan="6" class="empty-section">No recent activity.</td></tr>';
+        } else {
+            hb.innerHTML = d.watch_history.map(h => `
+      <tr>
+        <td class="content-link" onclick="window.location.href='content.html?id=${h.content_id}'">${h.title}</td>
+        <td>${h.type}</td>
+        <td>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${h.progress_pct}%"></div>
+          </div>
+          ${h.progress_pct}%
+        </td>
+        <td>${h.completed ? '✓' : '—'}</td>
+        <td>${h.device_type}</td>
+        <td>${h.watch_date}</td>
+      </tr>
+    `).join('');
+        }
+
+        // Watchlist
+        const wb = document.getElementById('watchlist-body');
+        const watchlistRes = await fetch('watchlist');
+        if (watchlistRes.status === 401) { window.location.href = 'login.html'; return; }
+        const watchlist = await watchlistRes.json();
+        if (!watchlist.length) {
+            wb.innerHTML = '<tr><td colspan="4" class="empty-section">No watchlist items.</td></tr>';
+        } else {
+            wb.innerHTML = watchlist.map(w => `
+      <tr>
+        <td class="content-link" onclick="window.location.href='content.html?id=${w.content_id}'">${w.title}</td>
+        <td>${w.type}</td>
+        <td>${w.release_year}</td>
+        <td>${w.added_time}</td>
+      </tr>
+    `).join('');
+        }
+    }
+
+    async function toggleAutoRenew() {
+        const res = await fetch('dashboard', {
+            method: 'POST',
+            body: new URLSearchParams({ action: 'toggle_autorenew' })
+        });
+        if ((await res.json()).success) load();
+    }
+
+    async function logout() {
+        await fetch('logout', { method:'POST' });
+        window.location.href = 'login.html';
+    }
+
+    checkAdmin();
+    load();
+</script>
+</body>
+</html>

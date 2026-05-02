@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>StreamVault — Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0d0d0d; color: #f0f0f0; }
+        nav {
+            background: #1a1a2e; padding: 14px 32px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        nav h1 { color: #e94560; font-size: 1.4rem; cursor:pointer; }
+        .admin-badge {
+            background: #e94560; padding: 3px 10px;
+            border-radius: 4px; font-size: 0.75rem; font-weight: 700; margin-left: 10px; color: #aaa;
+        }
+        nav .links a { color: #aaa; text-decoration: none; margin-left: 20px; font-size: 0.9rem; }
+        nav .links a:hover { color: #e94560; }
+        .page { max-width: 1100px; margin: 36px auto; padding: 0 28px; }
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin-bottom: 36px;
+        }
+        .stat-card {
+            background: #1a1a2e; border-radius: 10px; padding: 20px;
+            text-align: center; border-top: 3px solid #e94560;
+        }
+        .stat-value { font-size: 2rem; font-weight: 800; color: #e94560; }
+        .stat-label { font-size: 0.82rem; color: #888; margin-top: 4px; }
+        .section-title {
+            font-size: 1.1rem; font-weight: 700; color: #e94560;
+            margin-bottom: 16px; padding-bottom: 8px;
+            border-bottom: 1px solid #222;
+        }
+        .mb36 { margin-bottom: 36px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+        th {
+            text-align: left; padding: 10px 12px;
+            background: #1a1a2e; color: #888; font-weight: 600;
+        }
+        td { padding: 10px 12px; border-bottom: 1px solid #1a1a2e; }
+        tr:hover td { background: #111; }
+        .bar-wrap { display: flex; align-items: center; gap: 10px; }
+        .bar {
+            flex: 1; max-width: 200px;
+            background: #0d0d0d; border-radius: 4px; height: 8px; overflow: hidden;
+        }
+        .bar-fill { background: #e94560; height: 100%; border-radius: 4px; }
+        .rank { color: #f0c040; font-weight: 700; }
+        .completion { color: #6bffb8; }
+    </style>
+</head>
+<body>
+<nav>
+    <h1 onclick="window.location.href='home.html'">
+        StreamVault <span class="admin-badge">ADMIN</span>
+    </h1>
+    <div class="links">
+        <a href="home.html">Browse</a>
+        <a href="dashboard.html">My Account</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </div>
+</nav>
+
+<div class="page">
+
+    <!-- Platform Stats -->
+    <div class="section-title" style="margin-bottom:20px">Platform Overview</div>
+    <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-value">—</div><div class="stat-label">Active Users</div></div>
+        <div class="stat-card"><div class="stat-value">—</div><div class="stat-label">Total Content</div></div>
+        <div class="stat-card"><div class="stat-value">—</div><div class="stat-label">Active Subscriptions</div></div>
+        <div class="stat-card"><div class="stat-value">—</div><div class="stat-label">Total Revenue (USD)</div></div>
+        <div class="stat-card"><div class="stat-value">—</div><div class="stat-label">New Subscribers (30d)</div></div>
+    </div>
+
+    <!-- Revenue by Plan -->
+    <div class="section-title">Revenue by Plan (This Month)</div>
+    <div class="mb36">
+        <table>
+            <thead>
+            <tr><th>Plan</th><th>Payments</th><th>Total Revenue</th><th>Avg Payment</th></tr>
+            </thead>
+            <tbody id="revenue-body"></tbody>
+        </table>
+    </div>
+
+    <!-- Top 10 Content -->
+    <div class="section-title">Top 10 Content by Completion Rate</div>
+    <div class="mb36">
+        <table>
+            <thead>
+            <tr><th>#</th><th>Title</th><th>Type</th><th>Views</th><th>Completed</th><th>Completion Rate</th></tr>
+            </thead>
+            <tbody id="top10-body"></tbody>
+        </table>
+    </div>
+
+    <!-- Genre Popularity -->
+    <div class="section-title">Genre Popularity</div>
+    <div class="mb36">
+        <table>
+            <thead>
+            <tr><th>Genre</th><th>Watch Count</th><th>Popularity</th></tr>
+            </thead>
+            <tbody id="genre-body"></tbody>
+        </table>
+    </div>
+
+    <!-- Churn Risk Users -->
+    <div class="section-title">Churn Risk Users (Inactive 30+ Days)</div>
+    <div class="mb36">
+        <table>
+            <thead>
+            <tr><th>Name</th><th>Email</th><th>Country</th><th>Last Watched</th><th>Days Inactive</th></tr>
+            </thead>
+            <tbody id="churn-body"></tbody>
+        </table>
+    </div>
+
+    <!-- Ranked Content -->
+    <div class="section-title">Content Rankings by Rating — RANK()</div>
+    <div class="mb36">
+        <table>
+            <thead>
+            <tr><th>Rank</th><th>Title</th><th>Type</th><th>Avg Rating</th><th>Reviews</th></tr>
+            </thead>
+            <tbody id="ranked-body"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<script>
+    async function load() {
+        const res = await fetch('admin');
+        if (res.status === 403) {
+            document.body.innerHTML = '<div style="text-align:center;padding:60px;color:#e94560;font-size:1.2rem">Access denied. Admins only.</div>';
+            return;
+        }
+        if (res.status === 401) { window.location.href = 'login.html'; return; }
+        const d = await res.json();
+
+        // Stats
+        const stats = d.platform_stats;
+        const cards = document.querySelectorAll('.stat-card .stat-value');
+        cards[0].textContent = stats.active_users;
+        cards[1].textContent = stats.total_content;
+        cards[2].textContent = stats.active_subscriptions;
+        cards[3].textContent = '$' + stats.total_revenue.toFixed(2);
+        cards[4].textContent = d.new_subscribers;
+
+        // Revenue
+        const rb = document.getElementById('revenue-body');
+        rb.innerHTML = d.revenue_by_plan.length
+            ? d.revenue_by_plan.map(r => `
+        <tr>
+          <td>${r.plan_name}</td>
+          <td>${r.payment_count}</td>
+          <td>$${r.total_revenue.toFixed(2)}</td>
+          <td>$${r.avg_payment.toFixed(2)}</td>
+        </tr>
+      `).join('')
+            : '<tr><td colspan="4" style="color:#555;padding:12px">No payments this month.</td></tr>';
+
+        // Top 10
+        const tb = document.getElementById('top10-body');
+        const maxRate = d.top10_content.length ? d.top10_content[0].completion_rate : 100;
+        tb.innerHTML = d.top10_content.map((t, i) => `
+    <tr>
+      <td class="rank">${i + 1}</td>
+      <td>${t.title}</td>
+      <td>${t.type}</td>
+      <td>${t.total_views}</td>
+      <td>${t.completed_views}</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar">
+            <div class="bar-fill" style="width:${(t.completion_rate / maxRate) * 100}%"></div>
+          </div>
+          <span class="completion">${t.completion_rate}%</span>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+        // Genre
+        const gb = document.getElementById('genre-body');
+        const maxWatch = d.genre_popularity.length ? d.genre_popularity[0].watch_count : 1;
+        gb.innerHTML = d.genre_popularity.map(g => `
+    <tr>
+      <td>${g.genre}</td>
+      <td>${g.watch_count}</td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar">
+            <div class="bar-fill" style="width:${(g.watch_count / maxWatch) * 100}%"></div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+        // Churn risk
+        const chb = document.getElementById('churn-body');
+        chb.innerHTML = d.churn_risk_users.length
+            ? d.churn_risk_users.map(c => `
+      <tr>
+        <td>${c.full_name}</td>
+        <td>${c.email}</td>
+        <td>${c.country}</td>
+        <td>${c.last_watch}</td>
+        <td style="color:#ff6b6b;font-weight:700">${c.days_inactive} days</td>
+      </tr>
+    `).join('')
+            : '<tr><td colspan="5" style="color:#555;padding:12px">No churn-risk users found.</td></tr>';
+
+        // Ranked content
+        const rkb = document.getElementById('ranked-body');
+        rkb.innerHTML = d.ranked_content.map(r => `
+  <tr>
+    <td class="rank">#${r.ranking}</td>
+    <td>${r.title}</td>
+    <td>${r.type}</td>
+    <td style="color:#f0c040">★ ${r.avg_rating}</td>
+    <td>${r.review_count}</td>
+  </tr>
+`).join('');
+    }
+
+    async function logout() {
+        await fetch('logout', { method:'POST' });
+        window.location.href = 'login.html';
+    }
+
+    load();
+</script>
+</body>
+</html>
